@@ -1,4 +1,13 @@
 from flask import Flask, render_template, request
+import google.generativeai as genai
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 app = Flask(__name__)
 
@@ -8,56 +17,39 @@ def home():
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
-    planned = float(request.form['planned'])
-    actual = float(request.form['actual'])
-    assigned = int(request.form['assigned'])
-    completed = int(request.form['completed'])
-    screen = float(request.form['screen'])
-    sleep = float(request.form['sleep'])
 
-    productivity = round((actual / planned) * 100, 2)
+    planned = request.form['planned']
+    actual = request.form['actual']
+    assigned = request.form['assigned']
+    completed = request.form['completed']
+    screen = request.form['screen']
+    sleep = request.form['sleep']
 
-    score = 0
+    prompt = f"""
+    Analyze this student's productivity.
 
-    if actual < planned:
-        score += 30
+    Planned Study Hours: {planned}
+    Actual Study Hours: {actual}
+    Tasks Assigned: {assigned}
+    Tasks Completed: {completed}
+    Screen Time: {screen}
+    Sleep Hours: {sleep}
 
-    if completed < assigned:
-        score += 30
+    Give:
+    1. Productivity Analysis
+    2. Procrastination Level
+    3. Three Personalized Suggestions
+    """
 
-    if screen > 5:
-        score += 20
+    response = model.generate_content(prompt)
 
-    if sleep < 7:
-        score += 20
-
-    if score <= 30:
-        level = "Low"
-    elif score <= 60:
-        level = "Medium"
-    else:
-        level = "High"
-
-    suggestions = []
-
-    if actual < planned:
-        suggestions.append("Follow a fixed study schedule")
-
-    if completed < assigned:
-        suggestions.append("Break tasks into smaller goals")
-
-    if screen > 5:
-        suggestions.append("Reduce screen time")
-
-    if sleep < 7:
-        suggestions.append("Improve sleep duration")
+    result = response.text
+    print(result)
 
     return render_template(
-        'result.html',
-        productivity=productivity,
-        level=level,
-        suggestions=suggestions
+        "result.html",
+        result=result
     )
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)
